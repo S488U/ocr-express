@@ -140,5 +140,5 @@ async function handleOcr(req, res) {
 }
 
 app.listen(port, () => {
-  console.log(`🚀 OCR Server running: http://localhost:${port}`);
+  console.log(`OCR Server running: http://localhost:${port}`);
 });
