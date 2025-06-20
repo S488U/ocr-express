@@ -1,4 +1,13 @@
 {
+  "name": "ocr-express",
+  "version": "1.0.0",
+  "description": "Modern, fast, and privacy-friendly web app to extract text from images using Tesseract OCR (Node.js backend, WebAssembly)",
+  "author": "Shahabas Abdul Hameed",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/s488u/ocr-express"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.0.0"

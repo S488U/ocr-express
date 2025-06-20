@@ -30,7 +30,7 @@ OCR Express is a modern, fast, and privacy-friendly web app to extract text from
 See the API section in the web UI or [API documentation](#api) for details and examples.
 
 ## License
-MIT
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 This project was part of vibe coding.
