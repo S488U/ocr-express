@@ -1,0 +1,20 @@
+{
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "image-js": "^0.37.0",
+    "multer": "^2.0.1",
+    "node-fetch": "^3.3.2",
+    "tesseract-wasm": "^0.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
