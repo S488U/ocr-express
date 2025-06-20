@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://your-ocr-express-url.com/sitemap.xml
+Sitemap: https://ocr.dunite.tech/sitemap.xml
