@@ -17,6 +17,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "canvas": "^3.0.0-rc3",
     "express": "^5.1.0",
     "image-js": "^0.37.0",
     "multer": "^2.0.1",
