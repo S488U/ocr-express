@@ -8,7 +8,10 @@ import fsSync from 'fs';
 
 const app = express();
 const port = 3000;
-const upload = multer();
+
+const upload = multer({ 
+  limits: { fileSize: 5 * 1024 * 1024 } 
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
