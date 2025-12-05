@@ -10,202 +10,290 @@ const modalBg = document.getElementById('modal-bg');
 const modalImg = document.getElementById('modal-img');
 const modalCaption = document.getElementById('modal-caption');
 const modalClose = document.getElementById('modal-close');
+const runBtn = document.querySelector('button[type="submit"]');
 
+// State
 let imageFiles = [];
-let urlList = [];
+// We track created URLs to prevent memory leaks by revoking them when no longer needed
+let activeObjectUrls = []; 
 
+// --- Helper: Render Thumbnails ---
 function renderThumbs() {
+  // 1. Cleanup old object URLs to free memory
+  activeObjectUrls.forEach(url => URL.revokeObjectURL(url));
+  activeObjectUrls = [];
+  
   thumbsContainer.innerHTML = '';
+
   imageFiles.forEach((file, idx) => {
     const url = URL.createObjectURL(file);
+    activeObjectUrls.push(url);
+
     const div = document.createElement('div');
-    div.className = 'thumb relative w-20 h-20 rounded-lg overflow-hidden shadow bg-black flex items-center justify-center';
-    div.innerHTML = `<img src="${url}" alt="${file.name}" class="object-contain w-full h-full cursor-pointer" />` +
-      `<span class="tooltip">Preview image</span>` +
-      `<button class="absolute top-1 right-1 bg-accent text-black rounded-full w-6 h-6 flex items-center justify-center font-bold">×</button>`;
-    div.querySelector('button').onclick = e => {
+    // Using Tailwind classes from your HTML
+    div.className = 'thumb relative w-20 h-20 rounded-lg overflow-hidden shadow bg-black flex items-center justify-center border border-gray-700 hover:border-accent transition-colors';
+    div.innerHTML = `
+      <img src="${url}" alt="${file.name}" class="object-contain w-full h-full cursor-pointer" />
+      <span class="tooltip">Preview image</span>
+      <button type="button" class="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md transition-colors">×</button>
+    `;
+
+    // Remove button logic
+    div.querySelector('button').onclick = (e) => {
+      e.stopPropagation(); // Prevent triggering modal
       imageFiles.splice(idx, 1);
       renderThumbs();
     };
-    div.querySelector('img').onclick = e => {
+
+    // Preview logic
+    div.querySelector('img').onclick = () => {
       showModal(url, file.name);
     };
+
     thumbsContainer.appendChild(div);
   });
 }
 
+// --- Helper: Modal ---
 function showModal(src, caption) {
   modalImg.src = src;
   modalCaption.textContent = caption || '';
   modalBg.classList.add('active');
   modalBg.classList.remove('hidden');
 }
-modalClose.onclick = () => {
+
+function hideModal() {
   modalBg.classList.remove('active');
   modalBg.classList.add('hidden');
-};
-modalBg.onclick = e => {
-  if (e.target === modalBg) {
-    modalBg.classList.remove('active');
-    modalBg.classList.add('hidden');
-  }
-};
+  modalImg.src = ''; // Clear src
+}
 
-// Drag & drop
+modalClose.onclick = hideModal;
+modalBg.onclick = (e) => {
+  if (e.target === modalBg) hideModal();
+};
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && modalBg.classList.contains('active')) hideModal();
+});
+
+// --- Input Handling ---
+
+// 1. Drag & Drop
 uploadArea.addEventListener('dragover', e => {
   e.preventDefault();
-  uploadArea.classList.add('border-accent');
+  uploadArea.classList.add('border-accent', 'bg-accent2');
 });
 uploadArea.addEventListener('dragleave', e => {
   e.preventDefault();
-  uploadArea.classList.remove('border-accent');
+  uploadArea.classList.remove('border-accent', 'bg-accent2');
 });
 uploadArea.addEventListener('drop', e => {
   e.preventDefault();
-  uploadArea.classList.remove('border-accent');
+  uploadArea.classList.remove('border-accent', 'bg-accent2');
   if (e.dataTransfer.files && e.dataTransfer.files.length) {
-    for (const f of e.dataTransfer.files) imageFiles.push(f);
-    renderThumbs();
+    handleNewFiles(e.dataTransfer.files);
   }
 });
 
-// File select
+// 2. File Select Button
 selectBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', e => {
+fileInput.addEventListener('change', () => {
   if (fileInput.files && fileInput.files.length) {
-    for (const f of fileInput.files) imageFiles.push(f);
-    renderThumbs();
+    handleNewFiles(fileInput.files);
+    fileInput.value = ''; // Reset so same files can be selected again if needed
   }
 });
 
-// Paste from clipboard
+// 3. Paste from Clipboard
 window.addEventListener('paste', e => {
   if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) {
-    for (const f of e.clipboardData.files) imageFiles.push(f);
-    renderThumbs();
+    handleNewFiles(e.clipboardData.files);
   }
 });
 
-const runBtn = document.querySelector('button[type="submit"]');
+// Common file handler
+function handleNewFiles(fileList) {
+  let hasInvalid = false;
+  for (const f of fileList) {
+    if (f.type.startsWith('image/')) {
+      imageFiles.push(f);
+    } else {
+      hasInvalid = true;
+    }
+  }
+  if (hasInvalid) {
+    alert('Some files were skipped because they are not images.');
+  }
+  renderThumbs();
+}
+
+// --- Form Submission ---
 let loadingDiv = null;
 
 form.addEventListener('submit', async e => {
   e.preventDefault();
   errorDiv.textContent = '';
   resultsStack.innerHTML = '';
+  
+  // Parse URLs
+  const urlList = imageUrlInput.value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+
+  if (!imageFiles.length && !urlList.length) {
+    errorDiv.textContent = 'Please upload, paste, or provide at least one image or URL.';
+    return;
+  }
+
+  // UI Loading State
   runBtn.disabled = true;
   runBtn.classList.add('opacity-60', 'cursor-not-allowed');
-  // Show loading skeleton
+  runBtn.textContent = 'Processing...';
+  
   loadingDiv = document.createElement('div');
   loadingDiv.className = 'w-full flex flex-col gap-4 mt-8';
   loadingDiv.innerHTML = `
     <div class="animate-pulse bg-[#23232b] border border-accent rounded-lg shadow-lg p-6 flex flex-col gap-4">
       <div class="h-6 w-1/3 bg-accent rounded mb-2"></div>
-      <div class="h-4 w-full bg-white rounded mb-2"></div>
-      <div class="h-4 w-2/3 bg-white rounded mb-2"></div>
-      <div class="h-4 w-1/2 bg-white rounded"></div>
+      <div class="h-4 w-full bg-gray-600 rounded mb-2"></div>
+      <div class="h-4 w-2/3 bg-gray-600 rounded mb-2"></div>
+      <div class="h-4 w-1/2 bg-gray-600 rounded"></div>
     </div>
   `;
   resultsStack.appendChild(loadingDiv);
-
-  // Parse URLs (comma or newline separated)
-  urlList = imageUrlInput.value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
-
-  if (!imageFiles.length && !urlList.length) {
-    errorDiv.textContent = 'Please upload, paste, or provide at least one image or URL.';
-    runBtn.disabled = false;
-    runBtn.classList.remove('opacity-60', 'cursor-not-allowed');
-    if (loadingDiv) loadingDiv.remove();
-    return;
-  }
 
   const formData = new FormData();
   imageFiles.forEach(f => formData.append('images', f));
   if (urlList.length) formData.append('urls', JSON.stringify(urlList));
 
   const frontendStart = performance.now();
+
   try {
     const response = await fetch('/ocr', { method: 'POST', body: formData });
     const frontendEnd = performance.now();
+    
+    if (!response.ok) {
+      throw new Error(`Server Error: ${response.status} ${response.statusText}`);
+    }
+
     const data = await response.json();
     if (data.error) throw new Error(data.error);
-    if (!data.results) throw new Error('No OCR results.');
-    resultsStack.innerHTML = '';
-    // Calculate total backend time
+    if (!data.results || data.results.length === 0) throw new Error('No OCR results returned.');
+
+    resultsStack.innerHTML = ''; // Clear loader
     let totalBackend = 0;
-    data.results.forEach(r => { if (!r.error) totalBackend += r.time; });
+    
+    // Process Results
     data.results.forEach(result => {
+      if (!result.error) totalBackend += (result.time || 0);
+      
       const card = document.createElement('div');
       card.className = 'result-card bg-[#23232b] border border-accent rounded-lg shadow-lg mb-6 p-4 sm:p-6 relative flex flex-col items-start gap-4';
-      let imgHtml = '';
+      
+      // Determine Image Source for Preview
       let imgSrc = '';
       if (result.type === 'file') {
         const file = imageFiles.find(f => f.name === result.name);
         if (file) {
+          // We create a new specific URL for the result card. 
+          // Note: In a long-running SPA, we'd want to track this too, 
+          // but for a "submit and done" flow, letting the browser handle it is acceptable 
+          // or we could push to activeObjectUrls if we kept the array.
           imgSrc = URL.createObjectURL(file);
-          imgHtml = `<img src="${imgSrc}" alt="${result.name}" class="mini-img object-contain w-20 h-20 rounded-lg mb-2 inline-block align-middle cursor-pointer border border-accent" title="Preview image" />`;
         }
-      } else if (result.type === 'url') {
+      } else {
         imgSrc = result.name;
-        imgHtml = `<img src="${imgSrc}" alt="${result.name}" class="mini-img object-contain w-20 h-20 rounded-lg mb-2 inline-block align-middle cursor-pointer border border-accent" title="Preview image" />`;
       }
+
+      const imgHtml = imgSrc 
+        ? `<img src="${imgSrc}" alt="${result.name}" class="mini-img object-contain w-20 h-20 rounded-lg mb-2 inline-block align-middle cursor-pointer border border-accent hover:opacity-80 transition" title="View Full Image" />`
+        : '';
+
+      // Determine Content
       let ocrContent = '';
       if (result.error) {
-        ocrContent = `<div class="text-red-500 mb-2">${result.error}</div>`;
+        ocrContent = `<div class="text-red-500 mb-2 font-semibold">❌ ${result.error}</div>`;
       } else if (!result.text || !result.text.length || result.text.join('').trim() === '') {
-        ocrContent = `<div class="bg-yellow-100 text-yellow-800 rounded p-3 font-semibold mb-2">⚠️ No text recognized in this image.</div>`;
+        ocrContent = `<div class="bg-yellow-900/30 text-yellow-500 border border-yellow-700 rounded p-3 font-semibold mb-2">⚠️ No text recognized.</div>`;
       } else {
-        ocrContent = `<div class="ocr-lines bg-white text-black rounded p-3 font-mono text-base mb-2 whitespace-pre-wrap max-w-full overflow-x-auto">${result.text ? result.text.join('<br>') : ''}</div>` +
-          `<button class="copy-btn absolute top-6 right-6 bg-accent text-black px-3 py-1 rounded font-semibold hover:bg-yellow-400 transition">Copy</button>`;
+        const joinedText = result.text.join('\n');
+        ocrContent = `
+          <div class="ocr-lines bg-white text-black rounded p-3 font-mono text-sm sm:text-base mb-2 whitespace-pre-wrap max-w-full overflow-x-auto shadow-inner">${result.text.join('<br>')}</div>
+          <button class="copy-btn absolute top-4 right-4 sm:top-6 sm:right-6 bg-accent text-black px-3 py-1 rounded font-bold hover:bg-yellow-400 transition shadow-sm text-sm">Copy</button>
+        `;
       }
-      card.innerHTML =
-        `<div class="flex flex-row items-center w-full mb-2"><h3 class="text-lg font-bold text-accent flex items-center">${imgHtml}<span class="ml-2 text-white break-all">${result.name.replace(/^.*[\\\/]/, '')}</span></h3></div>` +
-        `<div class="flex-1 w-full">${ocrContent}</div>` +
-        `<div class="timing text-accent mt-2">Backend: ${result.time.toFixed(2)}s | Total Backend: ${totalBackend.toFixed(2)}s | Frontend: ${(frontendEnd-frontendStart).toFixed(2)}ms</div>`;
-      // Copy button
-      if (!result.error && result.text && result.text.length && result.text.join('').trim() !== '') {
-        card.querySelector('.copy-btn').onclick = () => {
-          navigator.clipboard.writeText(result.text.join('\n'));
-          card.querySelector('.copy-btn').textContent = 'Copied!';
-          setTimeout(() => card.querySelector('.copy-btn').textContent = 'Copy', 1200);
+
+      card.innerHTML = `
+        <div class="flex flex-row items-center w-full mb-2 gap-3">
+          ${imgHtml}
+          <h3 class="text-lg font-bold text-white break-all">${result.name}</h3>
+        </div>
+        <div class="flex-1 w-full relative">
+          ${ocrContent}
+        </div>
+        <div class="timing text-xs sm:text-sm text-gray-400 mt-2 font-mono">
+          Backend: ${(result.time || 0).toFixed(2)}s | Total: ${totalBackend.toFixed(2)}s | Net Latency: ${(frontendEnd - frontendStart).toFixed(0)}ms
+        </div>
+      `;
+
+      // Copy Button Event
+      const copyBtn = card.querySelector('.copy-btn');
+      if (copyBtn) {
+        copyBtn.onclick = () => {
+          const textToCopy = result.text.join('\n');
+          navigator.clipboard.writeText(textToCopy);
+          copyBtn.textContent = 'Copied!';
+          copyBtn.classList.add('bg-green-500', 'text-white');
+          setTimeout(() => {
+            copyBtn.textContent = 'Copy';
+            copyBtn.classList.remove('bg-green-500', 'text-white');
+          }, 1500);
         };
       }
-      // Miniature image click for modal
-      const mini = card.querySelector('.mini-img');
-      if (mini) mini.onclick = () => showModal(imgSrc, result.name);
+
+      // Modal Event
+      const miniImg = card.querySelector('.mini-img');
+      if (miniImg) {
+        miniImg.onclick = () => showModal(imgSrc, result.name);
+      }
+
       resultsStack.appendChild(card);
     });
-    // Clear images/urls after submit
+
+    // Cleanup UI after success
+    // Optional: Clear inputs so user can start fresh. 
+    // If you prefer to keep them, remove the next 4 lines.
     imageFiles = [];
-    urlList = [];
-    renderThumbs();
+    renderThumbs(); // This cleans up the input preview URLs
     imageUrlInput.value = '';
-    runBtn.disabled = false;
-    runBtn.classList.remove('opacity-60', 'cursor-not-allowed');
-    if (loadingDiv) loadingDiv.remove();
+    
   } catch (err) {
-    errorDiv.textContent = err.message || 'OCR failed!';
+    console.error(err);
+    errorDiv.innerHTML = `<span class="font-bold">Error:</span> ${err.message}`;
+    if (loadingDiv) loadingDiv.remove();
+  } finally {
     runBtn.disabled = false;
     runBtn.classList.remove('opacity-60', 'cursor-not-allowed');
-    if (loadingDiv) loadingDiv.remove();
+    runBtn.textContent = 'Run OCR';
   }
 });
 
-// Navbar navigation
+// --- Navbar Navigation ---
 const navLinks = document.querySelectorAll('nav a');
 const homeSection = document.getElementById('home');
 const aboutSection = document.getElementById('about');
 const apiSection = document.getElementById('api');
+
 navLinks.forEach(link => {
   link.addEventListener('click', e => {
     e.preventDefault();
     const hash = link.getAttribute('href');
-    homeSection.classList.add('hidden');
-    aboutSection.classList.add('hidden');
-    apiSection.classList.add('hidden');
+    
+    // Simple Router
+    [homeSection, aboutSection, apiSection].forEach(sec => sec.classList.add('hidden'));
+    
     if (hash === '#home') homeSection.classList.remove('hidden');
-    if (hash === '#about') aboutSection.classList.remove('hidden');
-    if (hash === '#api') apiSection.classList.remove('hidden');
+    else if (hash === '#about') aboutSection.classList.remove('hidden');
+    else if (hash === '#api') apiSection.classList.remove('hidden');
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 });
