@@ -1,0 +1,12 @@
+services:
+  ocr-express:
+    build: .
+    container_name: ocr-express
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    # Optional: Limits to prevent the app from eating all their RAM
+    deploy:
+      resources:
+        limits:
+          memory: 1G
