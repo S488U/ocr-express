@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60,
+      "includeFiles": "tesseract-core.wasm,tessdata/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index.js" }
+  ]
+}
