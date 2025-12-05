@@ -13,21 +13,33 @@ OCR Express is a modern, fast, and privacy-friendly web app to extract text from
 - SEO-ready with meta tags, sitemap, and robots.txt
 - Built with Node.js, Express, Tesseract, [tesseract-wasm](https://www.npmjs.com/package/tesseract-wasm), Tailwind CSS, and highlight.js
 
+## 🚀 Quick Start (Docker)
+The easiest way to run the app. No need to install Node.js.
 
-## Getting Started
-1. **Install dependencies:**
+1. **Get the code:** Download or clone this repository.
+2. **Run with Docker Compose:**
    ```bash
-   npm install
-   ```
-2. **Run the server:**
-   ```bash
-   npm start
+   docker compose up --build
    ```
 3. **Open your browser:**
    Visit `http://localhost:3000`
 
+## 🛠 Manual Setup (Development)
+If you want to modify the code or run without Docker.
+
+1. **Prerequisites:** Ensure you have Node.js 22+ installed.
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+3. **Run the server:**
+   ```bash
+   npm start
+   ```
+   *(Access via `http://localhost:3000`)*
+
 ## API Usage
-See the API section in the web UI or [API documentation](#api) for details and examples.
+See the API section in the web UI or the internal API documentation for details and examples.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
