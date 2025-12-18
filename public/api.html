@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Reference - OCR Express</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { brand: '#FFD700', dark: '#09090b', card: '#18181b', border: '#27272a' }
+                }
+            }
+        }
+    </script>
+    <style>body { background-color: #09090b; color: #fafafa; }</style>
+</head>
+<body class="antialiased flex flex-col min-h-screen">
+
+    <nav class="sticky top-0 z-40 w-full border-b border-border bg-[#09090b]/80 backdrop-blur-md">
+        <div class="container mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2">
+                <div class="bg-brand p-1.5 rounded-lg"><i data-lucide="scan-text" class="w-6 h-6 text-black"></i></div>
+                <span class="text-xl font-bold tracking-tight">OCR<span class="text-brand">Express</span></span>
+            </a>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
+                <a href="/" class="hover:text-brand transition-colors">Home</a>
+                <a href="/about.html" class="hover:text-brand transition-colors">About</a>
+                <a href="/api.html" class="text-brand">API</a>
+            </div>
+            <button id="mobile-menu-btn" class="md:hidden text-zinc-300"><i data-lucide="menu" class="w-7 h-7"></i></button>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden border-t border-border bg-card p-4 flex flex-col gap-4 text-zinc-400">
+            <a href="/" class="hover:text-brand">Home</a>
+            <a href="/about.html" class="hover:text-brand">About</a>
+            <a href="/api.html" class="text-brand">API</a>
+        </div>
+    </nav>
+
+    <main class="flex-grow container mx-auto max-w-4xl px-4 py-16">
+        <div class="flex items-center gap-4 mb-6">
+            <div class="p-3 bg-zinc-800 rounded-xl"><i data-lucide="server" class="w-8 h-8 text-brand"></i></div>
+            <h1 class="text-3xl font-bold">API Documentation</h1>
+        </div>
+
+        <div class="space-y-10">
+            <!-- Endpoint -->
+            <section class="bg-card border border-border rounded-2xl overflow-hidden">
+                <div class="bg-zinc-900/50 p-4 border-b border-border flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-blue-500/20 text-blue-400 px-3 py-1 rounded text-sm font-bold">POST</span>
+                        <code class="text-zinc-300">/ocr</code>
+                    </div>
+                    <span class="text-xs text-zinc-500">Multipart/Form-Data</span>
+                </div>
+                <div class="p-6">
+                    <p class="text-zinc-400 mb-4">Accepts image files or URLs to process via the OCR engine.</p>
+                    <h3 class="text-sm font-bold text-white mb-2 uppercase tracking-wider">Parameters</h3>
+                    <ul class="space-y-2 text-sm text-zinc-400 mb-6">
+                        <li class="grid grid-cols-1 sm:grid-cols-3 gap-2 border-b border-zinc-800 pb-2">
+                            <span class="font-mono text-brand">images</span>
+                            <span class="col-span-2">One or more image files (binary).</span>
+                        </li>
+                        <li class="grid grid-cols-1 sm:grid-cols-3 gap-2 border-b border-zinc-800 pb-2">
+                            <span class="font-mono text-brand">urls</span>
+                            <span class="col-span-2">JSON Array of URL strings (optional).</span>
+                        </li>
+                    </ul>
+
+                    <h3 class="text-sm font-bold text-white mb-2 uppercase tracking-wider">Example Request</h3>
+                    <pre class="rounded-lg overflow-hidden mb-6"><code class="language-bash">curl -X POST https://ocr.plexaur.com/ocr \
+  -F "images=@screenshot.png" \
+  -F "images=@document.jpg"</code></pre>
+
+                    <h3 class="text-sm font-bold text-white mb-2 uppercase tracking-wider">Example Response</h3>
+                    <pre class="rounded-lg overflow-hidden"><code class="language-json">{
+  "results": [
+    {
+      "name": "screenshot.png",
+      "type": "file",
+      "text": ["Extracted text line 1", "Line 2"],
+      "time": 0.45
+    }
+  ],
+  "totalTime": 0.45
+}</code></pre>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="border-t border-border py-8 bg-zinc-950 mt-auto">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-zinc-500 text-sm">© 2025 OCR Express.</p>
+            <p class="text-xs text-zinc-600 font-mono">Frontend Designed by Gemini AI</p>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    <script src="/navbar.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

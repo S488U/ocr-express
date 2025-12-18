@@ -1,3 +1,8 @@
+/**
+ * OCR Express Frontend Logic
+ * Re-designed by Daive
+ */
+
 const uploadArea = document.getElementById('upload-area');
 const fileInput = document.getElementById('file-input');
 const selectBtn = document.getElementById('select-btn');
@@ -6,294 +11,363 @@ const imageUrlInput = document.getElementById('image-url');
 const thumbsContainer = document.getElementById('thumbs-container');
 const resultsStack = document.getElementById('results-stack');
 const errorDiv = document.getElementById('error');
+const runBtn = document.getElementById('run-btn');
+
+// Modal Elements
 const modalBg = document.getElementById('modal-bg');
 const modalImg = document.getElementById('modal-img');
-const modalCaption = document.getElementById('modal-caption');
 const modalClose = document.getElementById('modal-close');
-const runBtn = document.querySelector('button[type="submit"]');
+const btnPrev = document.getElementById('modal-prev');
+const btnNext = document.getElementById('modal-next');
+const btnPrevM = document.getElementById('modal-prev-m');
+const btnNextM = document.getElementById('modal-next-m');
 
 // State
 let imageFiles = [];
-// We track created URLs to prevent memory leaks by revoking them when no longer needed
-let activeObjectUrls = []; 
+let activeObjectUrls = [];
+let currentModalIndex = 0;
 
-// --- Helper: Render Thumbnails ---
+// --- 1. Thumbnail & UI Logic ---
+
 function renderThumbs() {
-  // 1. Cleanup old object URLs to free memory
-  activeObjectUrls.forEach(url => URL.revokeObjectURL(url));
-  activeObjectUrls = [];
-  
-  thumbsContainer.innerHTML = '';
+    // Clean up memory
+    activeObjectUrls.forEach(url => URL.revokeObjectURL(url));
+    activeObjectUrls = [];
+    thumbsContainer.innerHTML = '';
 
-  imageFiles.forEach((file, idx) => {
-    const url = URL.createObjectURL(file);
-    activeObjectUrls.push(url);
+    imageFiles.forEach((file, idx) => {
+        const url = URL.createObjectURL(file);
+        activeObjectUrls.push(url);
 
-    const div = document.createElement('div');
-    // Using Tailwind classes from your HTML
-    div.className = 'thumb relative w-20 h-20 rounded-lg overflow-hidden shadow bg-black flex items-center justify-center border border-gray-700 hover:border-accent transition-colors';
-    div.innerHTML = `
-      <img src="${url}" alt="${file.name}" class="object-contain w-full h-full cursor-pointer" />
-      <span class="tooltip">Preview image</span>
-      <button type="button" class="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md transition-colors">×</button>
-    `;
+        const div = document.createElement('div');
+        // Grid Item Style
+        div.className = 'group relative aspect-square bg-zinc-800 rounded-xl overflow-hidden border border-zinc-700 hover:border-brand transition-all shadow-sm';
+        
+        div.innerHTML = `
+            <img src="${url}" class="object-cover w-full h-full opacity-90 group-hover:opacity-100 transition-opacity cursor-pointer" onclick="openModal(${idx})" />
+            
+            <!-- Delete Button (Top Right) -->
+            <button type="button" class="absolute top-1 right-1 bg-black/60 hover:bg-red-500 text-white p-1 rounded-md backdrop-blur-sm transition-colors z-10" onclick="removeFile(${idx})">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
 
-    // Remove button logic
-    div.querySelector('button').onclick = (e) => {
-      e.stopPropagation(); // Prevent triggering modal
-      imageFiles.splice(idx, 1);
-      renderThumbs();
-    };
-
-    // Preview logic
-    div.querySelector('img').onclick = () => {
-      showModal(url, file.name);
-    };
-
-    thumbsContainer.appendChild(div);
-  });
+            <!-- Expand Hint (Center - optional visual cue) -->
+            <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="bg-black/50 p-2 rounded-full backdrop-blur-sm">
+                    <i data-lucide="eye" class="w-5 h-5 text-white"></i>
+                </div>
+            </div>
+        `;
+        thumbsContainer.appendChild(div);
+    });
+    
+    lucide.createIcons();
 }
 
-// --- Helper: Modal ---
-function showModal(src, caption) {
-  modalImg.src = src;
-  modalCaption.textContent = caption || '';
-  modalBg.classList.add('active');
-  modalBg.classList.remove('hidden');
+// Exposed to HTML
+window.removeFile = (index) => {
+    imageFiles.splice(index, 1);
+    renderThumbs();
+};
+
+window.openModal = (index) => {
+    currentModalIndex = index;
+    updateModalImage();
+    modalBg.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
+};
+
+// --- 2. Carousel Logic ---
+
+function updateModalImage() {
+    if (imageFiles.length === 0) return hideModal();
+    // Wrap around index
+    if (currentModalIndex < 0) currentModalIndex = imageFiles.length - 1;
+    if (currentModalIndex >= imageFiles.length) currentModalIndex = 0;
+
+    // We regenerate URL here to be safe, or look up from activeObjectUrls
+    // Since renderThumbs runs often, activeObjectUrls[currentModalIndex] should be valid
+    if (activeObjectUrls[currentModalIndex]) {
+        modalImg.src = activeObjectUrls[currentModalIndex];
+    }
+}
+
+function nextImage() {
+    currentModalIndex++;
+    updateModalImage();
+}
+
+function prevImage() {
+    currentModalIndex--;
+    updateModalImage();
 }
 
 function hideModal() {
-  modalBg.classList.remove('active');
-  modalBg.classList.add('hidden');
-  modalImg.src = ''; // Clear src
+    modalBg.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    modalImg.src = '';
 }
 
+// Event Listeners for Carousel
+btnPrev.onclick = prevImage;
+btnNext.onclick = nextImage;
+btnPrevM.onclick = prevImage;
+btnNextM.onclick = nextImage;
 modalClose.onclick = hideModal;
-modalBg.onclick = (e) => {
-  if (e.target === modalBg) hideModal();
-};
+modalBg.onclick = (e) => { if (e.target === modalBg) hideModal(); };
+// Keyboard Nav
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && modalBg.classList.contains('active')) hideModal();
+    if (modalBg.classList.contains('hidden')) return;
+    if (e.key === 'Escape') hideModal();
+    if (e.key === 'ArrowLeft') prevImage();
+    if (e.key === 'ArrowRight') nextImage();
 });
 
-// --- Input Handling ---
 
-// 1. Drag & Drop
-uploadArea.addEventListener('dragover', e => {
-  e.preventDefault();
-  uploadArea.classList.add('border-accent', 'bg-accent2');
-});
-uploadArea.addEventListener('dragleave', e => {
-  e.preventDefault();
-  uploadArea.classList.remove('border-accent', 'bg-accent2');
-});
+// --- 3. Input Handling ---
+
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drop-active'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drop-active'));
 uploadArea.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadArea.classList.remove('border-accent', 'bg-accent2');
-  if (e.dataTransfer.files && e.dataTransfer.files.length) {
+    e.preventDefault();
+    uploadArea.classList.remove('drop-active');
     handleNewFiles(e.dataTransfer.files);
-  }
 });
 
-// 2. File Select Button
-selectBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => {
-  if (fileInput.files && fileInput.files.length) {
-    handleNewFiles(fileInput.files);
-    fileInput.value = ''; // Reset so same files can be selected again if needed
-  }
-});
+selectBtn.onclick = () => fileInput.click();
+fileInput.onchange = () => { handleNewFiles(fileInput.files); fileInput.value = ''; };
 
-// 3. Paste from Clipboard
 window.addEventListener('paste', e => {
-  if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) {
-    handleNewFiles(e.clipboardData.files);
-  }
+    if (e.clipboardData && e.clipboardData.files.length) {
+        handleNewFiles(e.clipboardData.files);
+    }
 });
 
-// Common file handler
 function handleNewFiles(fileList) {
-  let hasInvalid = false;
-  for (const f of fileList) {
-    if (f.type.startsWith('image/')) {
-      imageFiles.push(f);
-    } else {
-      hasInvalid = true;
+    for (const f of fileList) {
+        if (f.type.startsWith('image/')) {
+            imageFiles.push(f);
+        }
     }
-  }
-  if (hasInvalid) {
-    alert('Some files were skipped because they are not images.');
-  }
-  renderThumbs();
+    renderThumbs();
 }
 
-// --- Form Submission ---
-let loadingDiv = null;
+
+// --- 4. Submission & State Management ---
 
 form.addEventListener('submit', async e => {
-  e.preventDefault();
-  errorDiv.textContent = '';
-  resultsStack.innerHTML = '';
-  
-  // Parse URLs
-  const urlList = imageUrlInput.value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
-
-  if (!imageFiles.length && !urlList.length) {
-    errorDiv.textContent = 'Please upload, paste, or provide at least one image or URL.';
-    return;
-  }
-
-  // UI Loading State
-  runBtn.disabled = true;
-  runBtn.classList.add('opacity-60', 'cursor-not-allowed');
-  runBtn.textContent = 'Processing...';
-  
-  loadingDiv = document.createElement('div');
-  loadingDiv.className = 'w-full flex flex-col gap-4 mt-8';
-  loadingDiv.innerHTML = `
-    <div class="animate-pulse bg-[#23232b] border border-accent rounded-lg shadow-lg p-6 flex flex-col gap-4">
-      <div class="h-6 w-1/3 bg-accent rounded mb-2"></div>
-      <div class="h-4 w-full bg-gray-600 rounded mb-2"></div>
-      <div class="h-4 w-2/3 bg-gray-600 rounded mb-2"></div>
-      <div class="h-4 w-1/2 bg-gray-600 rounded"></div>
-    </div>
-  `;
-  resultsStack.appendChild(loadingDiv);
-
-  const formData = new FormData();
-  imageFiles.forEach(f => formData.append('images', f));
-  if (urlList.length) formData.append('urls', JSON.stringify(urlList));
-
-  const frontendStart = performance.now();
-
-  try {
-    const response = await fetch('/ocr', { method: 'POST', body: formData });
-    const frontendEnd = performance.now();
+    e.preventDefault();
+    errorDiv.textContent = '';
+    errorDiv.classList.add('hidden');
     
-    if (!response.ok) {
-      throw new Error(`Server Error: ${response.status} ${response.statusText}`);
+    const urlList = imageUrlInput.value.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+
+    if (!imageFiles.length && !urlList.length) {
+        showError('Please upload an image or provide a URL first.');
+        return;
     }
 
-    const data = await response.json();
-    if (data.error) throw new Error(data.error);
-    if (!data.results || data.results.length === 0) throw new Error('No OCR results returned.');
+    // Loading State
+    const originalBtnContent = runBtn.innerHTML;
+    runBtn.disabled = true;
+    runBtn.innerHTML = `<span class="animate-spin mr-2"><i data-lucide="loader-2" class="w-5 h-5"></i></span> Processing...`;
+    lucide.createIcons();
 
-    resultsStack.innerHTML = ''; // Clear loader
-    let totalBackend = 0;
+    const formData = new FormData();
+    imageFiles.forEach(f => formData.append('images', f));
+    if (urlList.length) formData.append('urls', JSON.stringify(urlList));
+
+    try {
+        const response = await fetch('/ocr', { method: 'POST', body: formData });
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+
+        // --- SUCCESS STATE HANDLING ---
+        // 1. Clear Results Stack to avoid appending to old runs (or keep if you prefer history)
+        resultsStack.innerHTML = ''; 
+        resultsStack.classList.remove('hidden');
+
+        // 2. Render Results
+        data.results.forEach(result => createResultCard(result));
+
+        // 3. CLEAR INPUTS (As requested: don't combine with next run)
+        imageFiles = []; 
+        renderThumbs();
+        imageUrlInput.value = '';
+
+        // Scroll to results
+        resultsStack.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        lucide.createIcons();
+
+    } catch (err) {
+        showError(err.message || 'An unknown error occurred.');
+    } finally {
+        runBtn.disabled = false;
+        runBtn.innerHTML = originalBtnContent;
+        lucide.createIcons(); // Re-init icons for the button
+    }
+});
+
+function showError(msg) {
+    errorDiv.textContent = msg;
+    errorDiv.classList.remove('hidden');
+}
+
+function createResultCard(result) {
+    const card = document.createElement('div');
+    // Mobile: p-3, Rounded-xl. Desktop: p-5, Rounded-2xl
+    card.className = 'glass rounded-xl sm:rounded-2xl p-3 sm:p-5 space-y-3 sm:space-y-4 animate-[slideIn_0.4s_ease-out] border-l-4 border-l-brand';
     
-    // Process Results
-    data.results.forEach(result => {
-      if (!result.error) totalBackend += (result.time || 0);
-      
-      const card = document.createElement('div');
-      card.className = 'result-card bg-[#23232b] border border-accent rounded-lg shadow-lg mb-6 p-4 sm:p-6 relative flex flex-col items-start gap-4';
-      
-      // Determine Image Source for Preview
-      let imgSrc = '';
-      if (result.type === 'file') {
+    let contentHtml = '';
+    if (result.error) {
+        contentHtml = `<div class="bg-red-500/10 border border-red-500/20 text-red-400 p-3 sm:p-4 rounded-xl text-sm flex gap-2"><i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i> ${result.error}</div>`;
+    } else {
+        const text = result.text.join('\n');
+        // Mobile: p-3. Desktop: p-4.
+        contentHtml = `
+            <div class="relative group">
+                <pre class="bg-zinc-950 text-zinc-300 p-3 sm:p-4 rounded-xl font-mono text-xs sm:text-sm overflow-x-auto border border-border leading-relaxed scrollbar-thin">${text || 'No text detected.'}</pre>
+                <button class="copy-btn absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-brand text-black px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg font-bold text-[10px] sm:text-xs flex items-center gap-1 shadow-lg">
+                    <i data-lucide="copy" class="w-3 h-3"></i> Copy
+                </button>
+            </div>
+        `;
+    }
+
+    card.innerHTML = `
+        <div class="flex items-center justify-between border-b border-border pb-2 sm:pb-3">
+            <div class="flex items-center gap-2 sm:gap-3 overflow-hidden">
+                <div class="bg-zinc-800 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                    <i data-lucide="${result.type === 'file' ? 'image' : 'link'}" class="text-brand w-4 h-4 sm:w-5 sm:h-5"></i>
+                </div>
+                <div class="flex flex-col min-w-0">
+                    <span class="font-bold text-sm text-zinc-200 truncate" title="${result.name}">${result.name}</span>
+                    <span class="text-[10px] sm:text-xs text-zinc-500 font-mono">Processed in ${(result.time || 0).toFixed(2)}s</span>
+                </div>
+            </div>
+        </div>
+        ${contentHtml}
+    `;
+
+    // Copy Logic (Same as before)
+    const copyBtn = card.querySelector('.copy-btn');
+    if (copyBtn) {
+        copyBtn.onclick = () => {
+            const text = result.text.join('\n');
+            navigator.clipboard.writeText(text);
+            copyBtn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Copied!`;
+            copyBtn.classList.add('bg-green-500', 'text-white');
+            copyBtn.classList.remove('bg-brand', 'text-black');
+            setTimeout(() => { 
+                copyBtn.innerHTML = `<i data-lucide="copy" class="w-3 h-3"></i> Copy`; 
+                copyBtn.classList.remove('bg-green-500', 'text-white');
+                copyBtn.classList.add('bg-brand', 'text-black');
+                lucide.createIcons(); 
+            }, 2000);
+            lucide.createIcons();
+        };
+    }
+
+    resultsStack.appendChild(card);
+}
+
+// Add keyframe animation style dynamically
+const style = document.createElement('style');
+style.innerHTML = `
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+`;
+document.head.appendChild(style);
+
+// Helper to view single result image
+window.viewResultImage = (src) => {
+    const modalImg = document.getElementById('modal-img');
+    const modalBg = document.getElementById('modal-bg');
+    modalImg.src = src;
+    modalBg.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+};
+
+function createResultCard(result) {
+    const card = document.createElement('div');
+    // Mobile: p-3. Desktop: p-5.
+    card.className = 'glass rounded-xl sm:rounded-2xl p-3 sm:p-5 space-y-3 sm:space-y-4 animate-[slideIn_0.4s_ease-out] border-l-4 border-l-brand';
+    
+    // 1. Determine Image Source for Thumbnail
+    let imgSrc = '';
+    let isFile = result.type === 'file';
+    
+    if (isFile) {
+        // Find the original file object to create a thumbnail URL
+        // Note: imageFiles might be cleared, but we are running this loop BEFORE clearing in the submit handler.
         const file = imageFiles.find(f => f.name === result.name);
         if (file) {
-          // We create a new specific URL for the result card. 
-          // Note: In a long-running SPA, we'd want to track this too, 
-          // but for a "submit and done" flow, letting the browser handle it is acceptable 
-          // or we could push to activeObjectUrls if we kept the array.
-          imgSrc = URL.createObjectURL(file);
+            imgSrc = URL.createObjectURL(file);
         }
-      } else {
-        imgSrc = result.name;
-      }
+    } else {
+        imgSrc = result.name; // It's a URL
+    }
 
-      const imgHtml = imgSrc 
-        ? `<img src="${imgSrc}" alt="${result.name}" class="mini-img object-contain w-20 h-20 rounded-lg mb-2 inline-block align-middle cursor-pointer border border-accent hover:opacity-80 transition" title="View Full Image" />`
-        : '';
-
-      // Determine Content
-      let ocrContent = '';
-      if (result.error) {
-        ocrContent = `<div class="text-red-500 mb-2 font-semibold">❌ ${result.error}</div>`;
-      } else if (!result.text || !result.text.length || result.text.join('').trim() === '') {
-        ocrContent = `<div class="bg-yellow-900/30 text-yellow-500 border border-yellow-700 rounded p-3 font-semibold mb-2">⚠️ No text recognized.</div>`;
-      } else {
-        const joinedText = result.text.join('\n');
-        ocrContent = `
-          <div class="ocr-lines bg-white text-black rounded p-3 font-mono text-sm sm:text-base mb-2 whitespace-pre-wrap max-w-full overflow-x-auto shadow-inner">${result.text.join('<br>')}</div>
-          <button class="copy-btn absolute top-4 right-4 sm:top-6 sm:right-6 bg-accent text-black px-3 py-1 rounded font-bold hover:bg-yellow-400 transition shadow-sm text-sm">Copy</button>
+    // 2. Build Content HTML
+    let contentHtml = '';
+    if (result.error) {
+        contentHtml = `<div class="bg-red-500/10 border border-red-500/20 text-red-400 p-3 sm:p-4 rounded-xl text-sm flex gap-2"><i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i> ${result.error}</div>`;
+    } else {
+        const text = result.text.join('\n');
+        contentHtml = `
+            <div class="relative group">
+                <pre class="bg-zinc-950 text-zinc-300 p-3 sm:p-4 rounded-xl font-mono text-xs sm:text-sm overflow-x-auto border border-border leading-relaxed scrollbar-thin max-h-96">${text || 'No text detected.'}</pre>
+                <button class="copy-btn absolute top-2 right-2 sm:top-3 sm:right-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-brand text-black px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg font-bold text-[10px] sm:text-xs flex items-center gap-1 shadow-lg z-10">
+                    <i data-lucide="copy" class="w-3 h-3"></i> Copy
+                </button>
+            </div>
         `;
-      }
+    }
 
-      card.innerHTML = `
-        <div class="flex flex-row items-center w-full mb-2 gap-3">
-          ${imgHtml}
-          <h3 class="text-lg font-bold text-white break-all">${result.name}</h3>
-        </div>
-        <div class="flex-1 w-full relative">
-          ${ocrContent}
-        </div>
-        <div class="timing text-xs sm:text-sm text-gray-400 mt-2 font-mono">
-          Backend: ${(result.time || 0).toFixed(2)}s | Total: ${totalBackend.toFixed(2)}s | Net Latency: ${(frontendEnd - frontendStart).toFixed(0)}ms
-        </div>
-      `;
+    // 3. Render Card
+    // Replaced the Icon div with an <img> tag that triggers the modal
+    card.innerHTML = `
+        <div class="flex items-center justify-between border-b border-border pb-2 sm:pb-3">
+            <div class="flex items-center gap-2 sm:gap-3 overflow-hidden">
+                
+                <!-- Thumbnail Image -->
+                <div class="relative group/thumb flex-shrink-0 cursor-pointer" onclick="viewResultImage('${imgSrc}')">
+                    <img src="${imgSrc}" class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover border border-zinc-700 group-hover/thumb:border-brand transition-colors bg-zinc-800" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM1MjUyNWIiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHg9IjMiIHk9IjMiIHJ4PSIyIiByeT0iMiIvPjxjaXJjbGUgY3g9IjkiIGN5PSI5IiByPSIyIi8+PHBhdGggZD0ibTIxIDE1LTUtNS01IDUtMi0yLTMgMyIvPjwvc3ZnPg=='" />
+                    <div class="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
+                         <i data-lucide="maximize-2" class="w-4 h-4 text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-md"></i>
+                    </div>
+                </div>
 
-      // Copy Button Event
-      const copyBtn = card.querySelector('.copy-btn');
-      if (copyBtn) {
+                <div class="flex flex-col min-w-0">
+                    <span class="font-bold text-sm text-zinc-200 truncate" title="${result.name}">${result.name}</span>
+                    <span class="text-[10px] sm:text-xs text-zinc-500 font-mono">Processed in ${(result.time || 0).toFixed(2)}s</span>
+                </div>
+            </div>
+        </div>
+        ${contentHtml}
+    `;
+
+    // Copy Logic
+    const copyBtn = card.querySelector('.copy-btn');
+    if (copyBtn) {
         copyBtn.onclick = () => {
-          const textToCopy = result.text.join('\n');
-          navigator.clipboard.writeText(textToCopy);
-          copyBtn.textContent = 'Copied!';
-          copyBtn.classList.add('bg-green-500', 'text-white');
-          setTimeout(() => {
-            copyBtn.textContent = 'Copy';
-            copyBtn.classList.remove('bg-green-500', 'text-white');
-          }, 1500);
+            const text = result.text.join('\n');
+            navigator.clipboard.writeText(text);
+            copyBtn.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i> Copied!`;
+            copyBtn.classList.add('bg-green-500', 'text-white');
+            copyBtn.classList.remove('bg-brand', 'text-black');
+            setTimeout(() => { 
+                copyBtn.innerHTML = `<i data-lucide="copy" class="w-3 h-3"></i> Copy`; 
+                copyBtn.classList.remove('bg-green-500', 'text-white');
+                copyBtn.classList.add('bg-brand', 'text-black');
+                lucide.createIcons(); 
+            }, 2000);
+            lucide.createIcons();
         };
-      }
+    }
 
-      // Modal Event
-      const miniImg = card.querySelector('.mini-img');
-      if (miniImg) {
-        miniImg.onclick = () => showModal(imgSrc, result.name);
-      }
-
-      resultsStack.appendChild(card);
-    });
-
-    // Cleanup UI after success
-    // Optional: Clear inputs so user can start fresh. 
-    // If you prefer to keep them, remove the next 4 lines.
-    imageFiles = [];
-    renderThumbs(); // This cleans up the input preview URLs
-    imageUrlInput.value = '';
-    
-  } catch (err) {
-    console.error(err);
-    errorDiv.innerHTML = `<span class="font-bold">Error:</span> ${err.message}`;
-    if (loadingDiv) loadingDiv.remove();
-  } finally {
-    runBtn.disabled = false;
-    runBtn.classList.remove('opacity-60', 'cursor-not-allowed');
-    runBtn.textContent = 'Run OCR';
-  }
-});
-
-// --- Navbar Navigation ---
-const navLinks = document.querySelectorAll('nav a');
-const homeSection = document.getElementById('home');
-const aboutSection = document.getElementById('about');
-const apiSection = document.getElementById('api');
-
-navLinks.forEach(link => {
-  link.addEventListener('click', e => {
-    e.preventDefault();
-    const hash = link.getAttribute('href');
-    
-    // Simple Router
-    [homeSection, aboutSection, apiSection].forEach(sec => sec.classList.add('hidden'));
-    
-    if (hash === '#home') homeSection.classList.remove('hidden');
-    else if (hash === '#about') aboutSection.classList.remove('hidden');
-    else if (hash === '#api') apiSection.classList.remove('hidden');
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-});
+    resultsStack.appendChild(card);
+}

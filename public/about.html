@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - OCR Express</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { brand: '#FFD700', dark: '#09090b', card: '#18181b', border: '#27272a' }
+                }
+            }
+        }
+    </script>
+    <style>body { background-color: #09090b; color: #fafafa; }</style>
+</head>
+<body class="antialiased flex flex-col min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-40 w-full border-b border-border bg-[#09090b]/80 backdrop-blur-md">
+        <div class="container mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2">
+                <div class="bg-brand p-1.5 rounded-lg"><i data-lucide="scan-text" class="w-6 h-6 text-black"></i></div>
+                <span class="text-xl font-bold tracking-tight">OCR<span class="text-brand">Express</span></span>
+            </a>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
+                <a href="/" class="hover:text-brand transition-colors">Home</a>
+                <a href="/about.html" class="text-brand">About</a>
+                <a href="/api.html" class="hover:text-brand transition-colors">API</a>
+            </div>
+            <button id="mobile-menu-btn" class="md:hidden text-zinc-300"><i data-lucide="menu" class="w-7 h-7"></i></button>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden border-t border-border bg-card p-4 flex flex-col gap-4 text-zinc-400">
+            <a href="/" class="hover:text-brand">Home</a>
+            <a href="/about.html" class="text-brand">About</a>
+            <a href="/api.html" class="hover:text-brand">API</a>
+        </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="flex-grow container mx-auto max-w-3xl px-4 py-16">
+        <h1 class="text-4xl font-bold mb-8 text-brand">About the Project</h1>
+        
+        <div class="space-y-12">
+            <section class="prose prose-invert">
+                <p class="text-lg text-zinc-300 leading-relaxed">
+                    OCR Express is a high-performance demonstration of modern web capabilities, bridging the gap between heavy desktop applications and lightweight web interfaces. We utilize <strong>Tesseract WASM</strong> to run optical character recognition with near-native speeds directly in the Node.js runtime.
+                </p>
+            </section>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-card border border-border p-6 rounded-2xl">
+                    <div class="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center mb-4"><i data-lucide="cpu" class="w-5 h-5"></i></div>
+                    <h3 class="text-xl font-bold mb-2">WebAssembly Power</h3>
+                    <p class="text-zinc-400 text-sm">By compiling C++ Tesseract libraries to WASM, we achieve consistent performance across all platforms without external binary dependencies.</p>
+                </div>
+                <div class="bg-card border border-border p-6 rounded-2xl">
+                    <div class="w-10 h-10 bg-green-500/20 text-green-400 rounded-lg flex items-center justify-center mb-4"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
+                    <h3 class="text-xl font-bold mb-2">Privacy First</h3>
+                    <p class="text-zinc-400 text-sm">Images are processed in a queue system and are not permanently stored. The queue ensures server stability even under heavy load.</p>
+                </div>
+            </div>
+
+            <section>
+                <h2 class="text-2xl font-bold mb-4">The Stack</h2>
+                <ul class="space-y-3 text-zinc-400">
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" class="text-brand w-5 h-5"></i> Express.js (Backend API)</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" class="text-brand w-5 h-5"></i> Tesseract.js / WASM (OCR Engine)</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" class="text-brand w-5 h-5"></i> Tailwind CSS (Styling)</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" class="text-brand w-5 h-5"></i> Vanilla JavaScript (Frontend Logic)</li>
+                </ul>
+            </section>
+        </div>
+    </main>
+
+    <footer class="border-t border-border py-8 bg-zinc-950 mt-auto">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-zinc-500 text-sm">© 2025 OCR Express.</p>
+            <p class="text-xs text-zinc-600 font-mono">Frontend Designed by Gemini AI</p>
+        </div>
+    </footer>
+    <script src="/navbar.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
