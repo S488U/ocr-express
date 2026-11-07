@@ -1,19 +1,31 @@
 @import "tailwindcss";
 
 :root {
-	--background: #fafafa;
-	--text: #09090b;
-	--card: #ffffff;
-	--border: #e4e4e7;
+	--background: #09090b;
+	--text: #fafafa;
+	--brand: #ffd700;
+	--card: #18181b;
+	--border: #27272a;
 }
 
 @theme inline {
 	--color-background: var(--background);
 	--color-text: var(--text);
+	--color-brand: var(--brand);
 	--font-sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 	--color-border: var(--border);
 	--color-card: var(--card);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--background: #0a0a0a;
+		--text: #ededed;
+		--brand: #ffd700;
+		--card: #18181b;
+		--border: #27272a;
+	}
 }
 
 body {
@@ -22,25 +34,35 @@ body {
 	font-family: var(--font-sans);
 }
 
-/* --- Clean Neutral Scrollbar --- */
+/* --- Sleek Custom Scrollbar --- */
+/* Webkit (Chrome, Edge, Safari) */
 ::-webkit-scrollbar {
-	width: 6px;
-	height: 6px;
+	@apply h-1.5 w-1.5;
 }
 ::-webkit-scrollbar-track {
-	background: transparent;
+	@apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
-	border-radius: 9999px;
-	background: #d4d4d8;
+	@apply rounded-xl bg-[#3f3f46];
 }
 ::-webkit-scrollbar-thumb:hover {
-	background: #a1a1aa;
+	@apply rounded-xl bg-[#ffd700];
 }
 
+/* Firefox */
 * {
 	scrollbar-width: thin;
-	scrollbar-color: #d4d4d8 transparent;
+	scrollbar-color: #3f3f46 transparent;
+}
+
+.glass {
+	background: rgba(24, 24, 27, 0.8);
+	backdrop-filter: blur(12px);
+	border: 1px solid #27272a;
+}
+.drop-active {
+	border-color: var(--brand);
+	background: rgba(255, 215, 0, 0.05);
 }
 
 pre.shiki {
@@ -48,5 +70,5 @@ pre.shiki {
 }
 
 button {
-	@apply select-none;
+	@apply select-none
 }
