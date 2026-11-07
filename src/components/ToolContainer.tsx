@@ -36,7 +36,9 @@ const ToolContainer = () => {
 	const [openImage, setOpenImage] = useState(false);
 	const [imageIndex, setImageIndex] = useState(0);
 	const [previewItems, setPreviewItems] = useState<previewItem[]>([]);
-	const [urlInput, setUrlInput] = useState("");
+	const [urls, setUrls] = useState<string[]>([]);
+	const [urlInputValue, setUrlInputValue] = useState("");
+	const [urlError, setUrlError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string>("");
 	const [showThumbnails, setShowThumbnails] = useState(false);
@@ -46,7 +48,79 @@ const ToolContainer = () => {
 	});
 	const [copied, setCopied] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
+	const urlInputRef = useRef<HTMLInputElement | null>(null);
 	const scrollRef = useRef<HTMLDivElement | null>(null);
+
+	const isValidUrl = (str: string) => {
+		try {
+			const parsed = new URL(str);
+			return parsed.protocol === "http:" || parsed.protocol === "https:";
+		} catch {
+			return false;
+		}
+	};
+
+	const addUrlsFromText = (rawText: string) => {
+		const items = rawText
+			.split(/[\n,\s]+/)
+			.map((item) => item.trim())
+			.filter((item) => item.length > 0);
+
+		if (items.length === 0) return;
+
+		const validUrls: string[] = [];
+		let hasInvalid = false;
+
+		items.forEach((item) => {
+			if (isValidUrl(item)) {
+				if (!urls.includes(item) && !validUrls.includes(item)) {
+					validUrls.push(item);
+				}
+			} else {
+				hasInvalid = true;
+			}
+		});
+
+		if (validUrls.length > 0) {
+			setUrls((prev) => [...prev, ...validUrls]);
+			setUrlInputValue("");
+		}
+
+		if (hasInvalid) {
+			setUrlError("Some URLs were invalid. Please provide valid http:// or https:// URLs.");
+		} else {
+			setUrlError("");
+		}
+	};
+
+	const removeUrl = (indexToRemove: number) => {
+		setUrls((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+	};
+
+	const handleUrlKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === "Enter" || e.key === ",") {
+			e.preventDefault();
+			if (urlInputValue.trim()) {
+				addUrlsFromText(urlInputValue);
+			}
+		} else if (e.key === "Backspace" && urlInputValue === "" && urls.length > 0) {
+			removeUrl(urls.length - 1);
+		}
+	};
+
+	const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+		const text = e.clipboardData.getData("text");
+		if (text && (text.includes("\n") || text.includes(",") || text.includes(" ") || isValidUrl(text.trim()))) {
+			e.preventDefault();
+			addUrlsFromText(text);
+		}
+	};
+
+	const handleUrlBlur = () => {
+		if (urlInputValue.trim()) {
+			addUrlsFromText(urlInputValue);
+		}
+	};
 
 	const openFileDialogueWindow = () => {
 		fileInputRef.current?.click();
@@ -102,13 +176,16 @@ const ToolContainer = () => {
 
 			images.forEach((image) => formData.append("images", image.file));
 
-			if (urlInput.trim() !== "") {
-				const urls = urlInput
-					.split(",")
-					.map((url) => url.trim())
-					.filter((url) => url.length > 0);
+			const finalUrls = [...urls];
+			if (urlInputValue.trim()) {
+				const trimmed = urlInputValue.trim();
+				if (isValidUrl(trimmed) && !finalUrls.includes(trimmed)) {
+					finalUrls.push(trimmed);
+				}
+			}
 
-				formData.append("urls", JSON.stringify(urls));
+			if (finalUrls.length > 0) {
+				formData.append("urls", JSON.stringify(finalUrls));
 			}
 
 			const response = await fetch("/api/ocr", {
@@ -271,29 +348,65 @@ const ToolContainer = () => {
 					{/* URL Input & Run Button */}
 					<div className="flex flex-col gap-3 sm:flex-row">
 						<div className="relative grow flex-col">
-							<div className="relative grow">
-								<Link
-									size={24}
-									className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500"
-								/>
+							<div
+								onClick={() => urlInputRef.current?.focus()}
+								className="border-border focus-within:ring-brand/50 focus-within:border-brand flex min-h-12 w-full cursor-text flex-wrap items-center gap-1.5 rounded-xl border bg-zinc-900/50 p-2 transition-all focus-within:ring-2"
+							>
+								<div className="flex shrink-0 items-center px-1 text-zinc-500">
+									<Link size={18} />
+								</div>
+
+								{urls.map((url, idx) => (
+									<span
+										key={idx}
+										className="border-zinc-700 bg-zinc-800 text-zinc-200 inline-flex max-w-[280px] items-center gap-1 rounded-lg border px-2.5 py-1 text-xs sm:max-w-[360px]"
+									>
+										<span className="truncate font-mono" title={url}>
+											{url.replace(/^https?:\/\//, "")}
+										</span>
+										<button
+											type="button"
+											onClick={(e) => {
+												e.stopPropagation();
+												removeUrl(idx);
+											}}
+											className="hover:bg-zinc-700 hover:text-white ml-0.5 rounded p-0.5 text-zinc-400 transition-colors"
+										>
+											<X className="h-3 w-3" />
+										</button>
+									</span>
+								))}
 
 								<input
-									type="url"
-									placeholder="Paste image URL (optional)"
-									className="border-border focus:ring-brand/50 focus:border-brand h-12 w-full rounded-xl border bg-zinc-900/50 px-10 text-sm transition-all focus:ring-2 focus:outline-none"
-									value={urlInput}
-									onChange={(e) => setUrlInput(e.target.value)}
+									ref={urlInputRef}
+									type="text"
+									placeholder={
+										urls.length === 0
+											? "Paste image URL and press Enter (optional)"
+											: "Add another URL..."
+									}
+									className="min-w-[160px] grow bg-transparent px-1 py-1 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none"
+									value={urlInputValue}
+									onChange={(e) => {
+										setUrlInputValue(e.target.value);
+										if (urlError) setUrlError("");
+									}}
+									onKeyDown={handleUrlKeyDown}
+									onPaste={handleUrlPaste}
+									onBlur={handleUrlBlur}
 								/>
 							</div>
-							<div>
-								<p className="mt-1 px-2 text-sm text-zinc-500">Seperated by coma</p>
+
+							<div className="mt-1 flex items-center justify-between px-2 text-xs text-zinc-500">
+								<span>Press Enter or comma to add multiple URLs, or paste directly</span>
+								{urlError && <span className="font-medium text-red-400">{urlError}</span>}
 							</div>
 						</div>
 
 						<button
 							type="submit"
-							disabled={loading || (images.length === 0 && urlInput.trim() === "")}
-							className={`bg-brand flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-8 text-lg font-bold text-black shadow-[0_0_15px_rgba(255,215,0,0.3)] transition-all hover:brightness-110 active:scale-[0.98] sm:w-auto ${images.length === 0 && urlInput.trim() === "" ? "cursor-not-allowed opacity-50" : ""}`}
+							disabled={loading || (images.length === 0 && urls.length === 0 && urlInputValue.trim() === "")}
+							className={`bg-brand flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-8 text-lg font-bold text-black shadow-[0_0_15px_rgba(255,215,0,0.3)] transition-all hover:brightness-110 active:scale-[0.98] sm:w-auto ${images.length === 0 && urls.length === 0 && urlInputValue.trim() === "" ? "cursor-not-allowed opacity-50" : ""}`}
 						>
 							{!loading ? (
 								<>
