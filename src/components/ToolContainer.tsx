@@ -1,6 +1,18 @@
 "use client";
 
-import { Link, UploadCloud, Zap, Eye, X, Loader2, Copy, File, Check } from "lucide-react";
+import {
+	Link,
+	UploadCloud,
+	Zap,
+	Eye,
+	X,
+	Loader2,
+	Copy,
+	Check,
+	Maximize2,
+	Download,
+	RotateCcw,
+} from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import Image from "next/image";
@@ -46,7 +58,7 @@ const ToolContainer = () => {
 		results: [],
 		totalTime: 0,
 	});
-	const [copied, setCopied] = useState(false);
+	const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 	const [isDragging, setIsDragging] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const urlInputRef = useRef<HTMLInputElement | null>(null);
@@ -261,29 +273,51 @@ const ToolContainer = () => {
 				results: mergedResult,
 				totalTime: data.totalTime,
 			});
-
-			console.log(data);
 		} catch (err) {
 			console.error("Error sending request", err);
 			setError(err instanceof Error ? "An unknown error occured" : "");
 		} finally {
 			setLoading(false);
-			setShowThumbnails(false);
 		}
 	};
 
-	const copyContent = async (text: string[]) => {
+	const copyContent = async (text: string[], index: number) => {
 		try {
 			const textData = text.join("\n");
 			await navigator.clipboard.writeText(textData);
-			setCopied(true);
+			setCopiedIndex(index);
 
 			setTimeout(() => {
-				setCopied(false);
+				setCopiedIndex(null);
 			}, 2000);
 		} catch (err) {
 			console.error("Copied Error: ", err);
 		}
+	};
+
+	const downloadText = (text: string[], name: string) => {
+		const cleanName = name.split("/").pop() || "ocr-result";
+		const baseName = cleanName.replace(/\.[^/.]+$/, "") || "ocr-result";
+		const blob = new Blob([text.join("\n")], { type: "text/plain;charset=utf-8" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = `${baseName}.txt`;
+		link.click();
+		URL.revokeObjectURL(url);
+	};
+
+	const clearAll = () => {
+		images.forEach((item) => URL.revokeObjectURL(item.url));
+		setImages([]);
+		setUrls([]);
+		setUrlInputValue("");
+		setUrlError("");
+		setError("");
+		setResult({
+			results: [],
+			totalTime: 0,
+		});
 	};
 
 	useEffect(() => {
@@ -394,7 +428,8 @@ const ToolContainer = () => {
 									{/* Delete Button (Top Right) */}
 									<button
 										type="button"
-										className="absolute top-1 right-1 z-10 rounded-md bg-black/60 p-1 text-white backdrop-blur-sm transition-colors hover:bg-red-500"
+										aria-label="Remove image"
+										className="absolute top-1.5 right-1.5 z-10 rounded-lg bg-black/70 p-1.5 text-white backdrop-blur-sm transition-colors hover:bg-red-500"
 										onClick={() => removeFile(index)}
 									>
 										<X className="h-4 w-4" />
@@ -497,27 +532,42 @@ const ToolContainer = () => {
 				{error !== "" && <div className="mt-6 animate-pulse text-center font-medium text-red-400">{error}</div>}
 
 				{/* Results Stack */}
-				{result.results.length !== 0 &&
-					result.results.map((item, index) => (
-						<div ref={scrollRef} key={index} className="mt-8 space-y-4 sm:mt-12 sm:space-y-6">
-							<div className="glass border-l-brand animate-[slideIn_0.4s_ease-out] space-y-3 rounded-xl border-l-4 p-3 sm:space-y-4 sm:rounded-2xl sm:p-5">
+				{result.results.length !== 0 && (
+					<div ref={scrollRef} className="mt-8 space-y-4 sm:mt-12 sm:space-y-6">
+						<div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+							<div className="flex items-center gap-2 text-sm text-zinc-300">
+								<span className="font-semibold text-white">Results</span>
+								<span className="text-zinc-500">•</span>
+								<span className="font-mono text-xs text-zinc-400">
+									{result.results.length} item{result.results.length > 1 ? "s" : ""} in{" "}
+									{result.totalTime.toFixed(2)}s
+								</span>
+							</div>
+
+							<button
+								type="button"
+								onClick={clearAll}
+								className="flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/80 px-2.5 py-1 text-xs text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-700 hover:text-white"
+							>
+								<RotateCcw className="h-3 w-3" />
+								<span>Reset</span>
+							</button>
+						</div>
+
+						{result.results.map((item, index) => (
+							<div
+								key={index}
+								className="glass border-l-brand animate-[slideIn_0.4s_ease-out] space-y-3 rounded-xl border-l-4 p-3 sm:space-y-4 sm:rounded-2xl sm:p-5"
+							>
 								<div className="border-border flex items-center justify-between border-b pb-2 sm:pb-3">
 									<div className="flex items-center gap-2 overflow-hidden sm:gap-3">
-										{/* <div className="shrink-0 rounded-lg bg-zinc-800 p-1.5 sm:p-2">
-											{item?.type === "file" ? (
-												<File className="text-brand h-4 w-4 sm:h-5 sm:w-5" />
-											) : (
-												<Link className="text-brand h-4 w-4 sm:h-5 sm:w-5" />
-											)}
-										</div> */}
-										{/* copied content */}
 										<div
 											className="group/thumb relative shrink-0 cursor-pointer"
 											onClick={() => openModal(getResultPreviewItems(), index)}
 										>
 											{item.type === "url" ? (
 												<img
-													alt=""
+													alt={item.name || "Preview Image"}
 													src={item.imageUrl || ""}
 													className="group-hover/thumb:border-brand h-10 w-10 rounded-lg border border-zinc-700 bg-zinc-800 object-cover transition-colors sm:h-12 sm:w-12"
 												/>
@@ -525,25 +575,22 @@ const ToolContainer = () => {
 												<Image
 													width={200}
 													height={200}
-													alt=""
+													alt={item.name || "Preview Image"}
 													src={item.imageUrl || ""}
 													className="group-hover/thumb:border-brand h-10 w-10 rounded-lg border border-zinc-700 bg-zinc-800 object-cover transition-colors sm:h-12 sm:w-12"
 												/>
 											)}
 											<div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 transition-colors group-hover/thumb:bg-black/20">
-												<i
-													data-lucide="maximize-2"
-													className="h-4 w-4 text-white opacity-0 drop-shadow-md transition-opacity group-hover/thumb:opacity-100"
-												></i>
+												<Maximize2 className="h-4 w-4 text-white opacity-0 drop-shadow-md transition-opacity group-hover/thumb:opacity-100" />
 											</div>
 										</div>
 
 										<div className="flex min-w-0 flex-col">
 											<span
 												className="truncate text-sm font-bold text-zinc-200"
-												title="${result.name}"
+												title={item?.name || "Image"}
 											>
-												{item?.name || "Hello world"}
+												{item?.name || "Image"}
 											</span>
 											<span className="font-mono text-[10px] text-zinc-500 sm:text-xs">
 												Processed in {(item?.time || 0).toFixed(2)}s
@@ -551,32 +598,53 @@ const ToolContainer = () => {
 										</div>
 									</div>
 								</div>
+
 								<div className="group relative">
-									<pre className="border-border scrollbar-thin overflow-x-auto rounded-xl border bg-zinc-950 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-zinc-300 sm:p-4 sm:text-sm">
+									<pre className="border-border scrollbar-thin max-h-96 overflow-auto rounded-xl border bg-zinc-950 p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-zinc-300 sm:p-4 sm:text-sm">
 										{Array.isArray(item.text) && item.text.length !== 0 ? (
 											item.text.join("\n")
 										) : (
-											<span className="text-red-300">No Text detected</span>
+											<span className="text-zinc-500 italic">No text detected in this image</span>
 										)}
 									</pre>
-									<button
-										onClick={() => copyContent(item.text)}
-										className={`copy-btn ${copied ? "bg-green-400" : "bg-brand"} absolute top-2 right-2 flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-black opacity-100 shadow-lg transition-opacity sm:top-3 sm:right-3 sm:px-3 sm:py-1.5 sm:text-xs sm:opacity-0 sm:group-hover:opacity-100`}
-									>
-										{copied ? (
-											<>
-												<Check className="h-3 w-3" /> Copied
-											</>
-										) : (
-											<>
-												<Copy className="h-3 w-3" /> Copy
-											</>
+
+									<div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-100 transition-opacity sm:top-3 sm:right-3 sm:opacity-0 sm:group-hover:opacity-100">
+										{Array.isArray(item.text) && item.text.length > 0 && (
+											<button
+												type="button"
+												aria-label="Download text file"
+												onClick={() => downloadText(item.text, item.name)}
+												className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] font-medium text-zinc-200 shadow-lg transition-colors hover:bg-zinc-700 hover:text-white sm:px-2.5 sm:py-1.5 sm:text-xs"
+											>
+												<Download className="h-3 w-3" />
+												<span className="hidden sm:inline">Download</span>
+											</button>
 										)}
-									</button>
+
+										<button
+											type="button"
+											aria-label="Copy text to clipboard"
+											onClick={() => copyContent(item.text, index)}
+											className={`copy-btn ${
+												copiedIndex === index ? "bg-green-400" : "bg-brand"
+											} flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-black shadow-lg transition-all sm:px-3 sm:py-1.5 sm:text-xs`}
+										>
+											{copiedIndex === index ? (
+												<>
+													<Check className="h-3 w-3" /> Copied
+												</>
+											) : (
+												<>
+													<Copy className="h-3 w-3" /> Copy
+												</>
+											)}
+										</button>
+									</div>
 								</div>
 							</div>
-						</div>
-					))}
+						))}
+					</div>
+				)}
 			</div>
 			{openImage && (
 				<PreviewModal
