@@ -1,8 +1,19 @@
-import { ScanText, Menu, Github } from "lucide-react";
+"use client";
+
+import { ScanText, Github } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import MobileMenu from "./MobileMenu";
 
 const Navbar = () => {
+	const pathname = usePathname();
+
+	const navLinks = [
+		{ href: "/", label: "Home" },
+		{ href: "/about", label: "About" },
+		{ href: "/docs", label: "API" },
+	];
+
 	return (
 		<nav className="border-border glass sticky top-0 z-40 w-full border-b">
 			<div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -17,15 +28,20 @@ const Navbar = () => {
 
 				{/* Desktop Menu */}
 				<div className="hidden items-center gap-8 text-sm font-medium text-zinc-400 md:flex">
-					<Link href="/" className="text-brand">
-						Home
-					</Link>
-					<Link href="/about" className="hover:text-brand transition-colors">
-						About
-					</Link>
-					<Link href="/docs" className="hover:text-brand transition-colors">
-						API
-					</Link>
+					{navLinks.map((link) => {
+						const isActive = pathname === link.href;
+						return (
+							<Link
+								key={link.href}
+								href={link.href}
+								className={`transition-colors ${
+									isActive ? "text-brand font-semibold" : "hover:text-brand text-zinc-400"
+								}`}
+							>
+								{link.label}
+							</Link>
+						);
+					})}
 					<Link
 						href="https://github.com/s488u/ocr-express"
 						target="_blank"
