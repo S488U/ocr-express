@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, UploadCloud, Zap, Eye, X, Loader2, Copy, File, Check } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import Image from "next/image";
 import PreviewModal from "./PreviewModal";
@@ -47,9 +47,72 @@ const ToolContainer = () => {
 		totalTime: 0,
 	});
 	const [copied, setCopied] = useState(false);
+	const [isDragging, setIsDragging] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const urlInputRef = useRef<HTMLInputElement | null>(null);
 	const scrollRef = useRef<HTMLDivElement | null>(null);
+
+	const addFileObjects = useCallback((newFiles: File[]) => {
+		const imageFiles = newFiles.filter((f) => f.type.startsWith("image/"));
+		if (imageFiles.length === 0) return;
+
+		const updatedImage = imageFiles.map((file) => ({
+			file,
+			url: URL.createObjectURL(file),
+		}));
+
+		setResult({
+			results: [],
+			totalTime: 0,
+		});
+
+		setImages((prev) => [...prev, ...updatedImage]);
+		setShowThumbnails(true);
+	}, []);
+
+	const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setIsDragging(true);
+	};
+
+	const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setIsDragging(false);
+	};
+
+	const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setIsDragging(false);
+
+		if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+			addFileObjects(Array.from(e.dataTransfer.files));
+		}
+	};
+
+	useEffect(() => {
+		const handlePaste = (e: ClipboardEvent) => {
+			const target = e.target as HTMLElement | null;
+			if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+				return;
+			}
+
+			if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
+				const files = Array.from(e.clipboardData.files).filter((file) =>
+					file.type.startsWith("image/")
+				);
+				if (files.length > 0) {
+					e.preventDefault();
+					addFileObjects(files);
+				}
+			}
+		};
+
+		window.addEventListener("paste", handlePaste);
+		return () => window.removeEventListener("paste", handlePaste);
+	}, [addFileObjects]);
 
 	const isValidUrl = (str: string) => {
 		try {
@@ -128,27 +191,7 @@ const ToolContainer = () => {
 
 	const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
 		if (!e.target.files) return;
-
-		const newFiles = Array.from(e.target.files);
-
-		const updatedImage = newFiles.map((file) => ({
-			file,
-			url: URL.createObjectURL(file),
-		}));
-
-		if (result.results.length > 0) {
-			images.forEach((item) => URL.revokeObjectURL(item.url));
-
-			setImages(updatedImage);
-
-			setResult({
-				results: [],
-				totalTime: 0,
-			});
-		} else {
-			setImages((prev) => [...prev, ...updatedImage]);
-		}
-		setShowThumbnails(true);
+		addFileObjects(Array.from(e.target.files));
 	};
 
 	const removeFile = (index: number) => {
@@ -271,8 +314,24 @@ const ToolContainer = () => {
 				<form className="space-y-4 sm:space-y-6" onSubmit={submitForm}>
 					{/* Upload Area */}
 					<div
+						role="button"
+						tabIndex={0}
+						aria-label="Upload images by dropping files, pasting from clipboard, or clicking to browse"
 						onClick={openFileDialogueWindow}
-						className="group hover:border-brand/50 relative cursor-pointer rounded-xl border-2 border-dashed border-zinc-700 p-6 text-center transition-all hover:bg-zinc-900/50 sm:rounded-2xl sm:p-12"
+						onKeyDown={(e) => {
+							if (e.key === "Enter" || e.key === " ") {
+								e.preventDefault();
+								openFileDialogueWindow();
+							}
+						}}
+						onDragOver={handleDragOver}
+						onDragLeave={handleDragLeave}
+						onDrop={handleDrop}
+						className={`group relative cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-all sm:rounded-2xl sm:p-12 ${
+							isDragging
+								? "border-brand bg-brand/10 scale-[1.01]"
+								: "border-zinc-700 hover:border-brand/50 hover:bg-zinc-900/50"
+						}`}
 					>
 						<input
 							ref={fileInputRef}
@@ -283,21 +342,30 @@ const ToolContainer = () => {
 							className="hidden"
 						/>
 						<div className="flex flex-col items-center gap-3 sm:gap-4">
-							<div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-800 shadow-lg transition-transform group-hover:scale-110 sm:h-16 sm:w-16">
+							<div
+								className={`flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-transform group-hover:scale-110 sm:h-16 sm:w-16 ${
+									isDragging ? "bg-brand text-black scale-110" : "bg-zinc-800 text-zinc-400"
+								}`}
+							>
 								<UploadCloud
 									size={24}
-									className="group-hover:text-brand h-6 w-6 text-zinc-400 sm:h-8 sm:w-8"
+									className={`h-6 w-6 sm:h-8 sm:w-8 ${
+										isDragging ? "text-black" : "group-hover:text-brand"
+									}`}
 								/>
 							</div>
 							<div className="select-none">
 								<p className="text-base font-semibold text-zinc-200 sm:text-lg">
-									Drop images or click to browse
+									{isDragging ? "Drop images here" : "Drop images, paste clipboard, or click to browse"}
 								</p>
-								<p className="mt-1 text-xs text-zinc-500 sm:text-sm">Supports PNG, JPG, WebP</p>
+								<p className="mt-1 text-xs text-zinc-500 sm:text-sm">
+									Supports PNG, JPG, WebP (Ctrl+V / Cmd+V to paste)
+								</p>
 							</div>
 
 							<button
 								type="button"
+								tabIndex={-1}
 								className="hover:bg-brand mt-1 rounded-full bg-zinc-100 px-4 py-2 text-xs font-bold text-black shadow-md transition-colors sm:mt-2 sm:px-6 sm:text-sm"
 							>
 								Select Files
