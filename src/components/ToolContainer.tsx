@@ -580,6 +580,7 @@ const ToolContainer = () => {
 			</div>
 			{openImage && (
 				<PreviewModal
+					key={`${imageIndex}-${previewItems.length}`}
 					openImage={openImage}
 					setOpenImage={setOpenImage}
 					items={previewItems}
